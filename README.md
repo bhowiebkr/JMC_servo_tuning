@@ -91,6 +91,25 @@ The merge process automatically generates:
 - **Analysis report** identifying potential buzzing causes
 - **Custom recommendations** based on your specific configuration
 
+### Step 4: Advanced Analysis with AI (Recommended)
+
+For the most comprehensive analysis and tuning recommendations, provide the generated JSON file to an advanced AI assistant like **Anthropic's Claude Code**:
+
+```
+Upload your merged JSON file (e.g., servo_parameters_merged.json) to Claude Code and ask:
+
+"Based on these JMC servo parameters, analyze my current configuration and provide 
+specific recommendations to eliminate buzzing and optimize performance."
+```
+
+**Why use AI analysis?**
+- **Deep parameter relationship understanding** - AI can analyze complex interactions between 100+ parameters
+- **Contextual recommendations** - Suggestions based on your specific motor ratings, inertia ratios, and current settings
+- **Troubleshooting insights** - Identify root causes of buzzing, oscillation, and performance issues
+- **Step-by-step tuning procedures** - Prioritized parameter changes with expected outcomes
+
+The example file `examples/jmc_parameters_with_values.json` was analyzed by Claude Code to create the comprehensive tuning guide included in this repository.
+
 ## 🔧 Understanding the Output
 
 ### Generated Files
@@ -116,17 +135,30 @@ The tool will identify parameters like:
 - **P01-03** (Rigidity level settings)  
 - **P08-XX** (Filtering and vibration suppression)
 
+**AI Analysis Example:** "Your servo is in manual rigidity mode (P01-02=0) with high rigidity (P01-03=13), causing buzzing. Switch to automatic mode and add filtering."
+
 ### Case 2: Performance Optimization
 Analysis includes:
 - **Position loop gains** (P02-XX series)
 - **Speed loop parameters** (P02-XX series)
 - **Inertia ratio settings** (P01-04)
 
+**AI Analysis Example:** "Based on your 2.5:1 inertia ratio, the current gains are suboptimal. Enable auto-tuning (P01-02=1) for your load characteristics."
+
 ### Case 3: System Integration
 Documentation for:
 - **Communication settings** (P00-XX series)
 - **I/O configuration** 
 - **Brake and safety parameters**
+
+### Case 4: AI-Powered Expert Analysis
+Upload your JSON file to **Claude Code** for:
+- **Root cause analysis** of servo issues
+- **Prioritized tuning sequences** 
+- **Parameter relationship insights**
+- **Custom troubleshooting guides**
+
+*The comprehensive tuning guide in this repository was generated through AI analysis of the example parameter file.*
 
 ## 📖 Expert Tuning Guide
 
