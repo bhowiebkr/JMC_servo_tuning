@@ -42,14 +42,21 @@ Manual servo tuning is one of the most complex aspects of motion control enginee
 
 Without this expert knowledge, the high rigidity setting becomes counterproductive - the servo is essentially "fighting itself" with overly aggressive gains that create rapid control actions, amplify system noise, generate excessive torque ripple, and excite mechanical resonances. The buzzing you're experiencing is the audible manifestation of these poorly matched control parameters. The servo is trying to achieve precise control with brute force rather than intelligent adaptation, resulting in the mechanical vibrations that create the characteristic servo "buzz" or "whine."
 
-## Quick Reference - Common Buzz Fixes
+## Quick Reference - Specific Fixes for Your System
 
-**Immediate Actions for Buzzing:**
-1. **Enable automatic rigidity:** P01-02 from 0→1 (Critical for manual mode buzzing)
-2. **Reduce rigidity level:** P01-03 from 13→8 (Lower for smoother operation)
-3. **Add torque filtering:** P08-20 = 1.5ms, P08-21 = 1.5ms  
-4. **Enable adaptive notch:** P08-11 = 1, P08-13 = 3
-5. **Add speed filtering:** P08-19 = 1.0ms
+**⚠️ CRITICAL: Based on your actual parameter analysis, the main buzzing cause is P02-13 = 29 (too high dynamic gain)**
+
+**Immediate Actions for Your Buzzing (in order):**
+1. **Enable adaptive notch detection:** P08-11 = 1 (run for 2-5 minutes during typical moves)
+2. **Freeze the detected notch:** P08-11 = 0 (locks the found resonance frequency) 
+3. **Add torque filtering:** P08-20 = 1.5ms (smooths torque commands)
+4. **Reduce dynamic gain:** P02-13 from 29→24 (main buzzing fix for motion)
+5. **Optional speed filtering:** P08-19 = 0.5-1.0ms (if high-freq hiss remains)
+
+**Keep these current values (already optimized):**
+- P02-10 = 20 (static gain already lowered appropriately)  
+- P02-11 = 11ms (static integral already adjusted)
+- P02-14 = 1000ms (dynamic integral disabled - this is correct)
 
 **Emergency Stop Conditions:**
 - Excessive vibration or unusual noise
@@ -102,93 +109,184 @@ Without this expert knowledge, the high rigidity setting becomes counterproducti
 
 **Expected Result:** Immediate reduction in buzzing while maintaining position control accuracy.
 
+## Detailed Analysis of Your Current Parameters
+
+### Critical Speed Loop Settings (From Your JSON File)
+**Current Speed Loop Gains:**
+- **P02-10** (Speed proportional gain 1 / static Kp): **20.0** (↓ already lowered from default ~27)
+- **P02-11** (Speed integral constant 1 / static Ki time): **11.0ms** (↑ already raised from default ~10ms)  
+- **P02-13** (Speed proportional gain 2 / dynamic Kp): **29.0** (↑ **PROBLEM: raised above default ~27**)
+- **P02-14** (Speed integral constant 2 / dynamic Ki time): **1000ms** (maxed out - effectively disables integral during motion)
+
+### Filtering & Vibration Suppression Status
+**Current Filter Settings:**
+- **P08-11** (Adaptive notch filter mode): **0 → OFF** (No automatic resonance suppression)
+- **P08-19** (Feedback speed LPF): Not set (assume default = 0ms / off)
+- **P08-20** (Torque command filter): Not listed in JSON (likely factory ~0.8ms - minimal filtering)
+- **P08-30...** (Manual notch parameters): Not set (no manual resonance suppression)
+
+### Root Cause Analysis
+**Why You're Experiencing Buzzing:**
+
+1. **High Dynamic Gain (P02-13 = 29):** You've raised the dynamic speed gain above factory default, making the servo very stiff during motion. This easily excites structural resonances causing the buzzing during moves.
+
+2. **No Filtering Active:** With adaptive notch disabled and minimal torque filtering, any mechanical resonance frequencies are amplified rather than suppressed.
+
+3. **Imbalanced Gain Strategy:** You correctly lowered static gains (P02-10, raised P02-11) for smooth holding, but increased dynamic gain (P02-13) which works against buzz elimination.
+
+4. **Disabled Dynamic Integral (P02-14 = 1000ms):** While this prevents integral windup, it means all dynamic control relies on proportional action, making the system more prone to oscillation.
+
+**The Fix:** Your system needs dynamic gain reduction (P02-13: 29→24) combined with adaptive notch filtering, not automatic mode switching.
+
 ## Step-by-Step Buzzing Elimination Procedure
 
-### Phase A: Critical Parameter Changes (Do These First)
+### Phase A: Adaptive Notch Detection & Filtering (Do These First)
 **⚠️ SAFETY: Ensure servo is disabled before making parameter changes**
 
-1. **Enable Automatic Rigidity Control:**
+1. **Enable Adaptive Notch Detection:**
    ```
-   Parameter: P01-02
-   Current Value: 0 (Manual)
-   New Value: 1 (Standard automatic mode)
-   Reason: Allows servo to auto-optimize gains for your 2.5:1 inertia ratio
-   ```
-
-2. **Reduce Rigidity Level:**
-   ```
-   Parameter: P01-03  
-   Current Value: 13 (Medium-high)
-   New Value: 8 (Conservative starting point)
-   Reason: Reduces control aggressiveness to eliminate buzzing
+   Parameter: P08-11 (Adaptive notch filter mode)
+   Current Value: 0 (OFF)
+   New Value: 1 (Single adaptive notch active)
+   Purpose: Let the servo automatically detect resonance frequencies
    ```
 
-3. **Enable Servo and Test:**
-   - Turn on servo and listen for buzzing
-   - If buzzing eliminated, proceed to Phase B
-   - If buzzing remains, continue with filtering
+2. **Run Detection Routine:**
+   - Enable servo and run through typical moves that cause buzzing
+   - Continue for 2-5 minutes to allow full detection
+   - Listen for reduction in buzzing as notch adapts
+   - The servo will automatically find and suppress resonance frequencies
 
-### Phase B: Add Filtering (If Buzzing Continues)
+3. **Freeze the Detected Notch:**
+   ```
+   Parameter: P08-11
+   Change Value: 1 → 0 (Freeze/lock the found notch settings)
+   Purpose: Locks the automatically detected frequency so it won't drift
+   Result: Notch filter remains active but stops adapting
+   ```
 
 4. **Add Torque Command Filtering:**
    ```
-   Parameter: P08-20 (Torque filter 1)
-   Set Value: 1.5 ms
-   
-   Parameter: P08-21 (Torque filter 2) 
-   Set Value: 1.5 ms
-   
-   Effect: Smooths torque commands to reduce high-frequency noise
+   Parameter: P08-20 (Torque command filter constant)
+   Set Value: 1.5ms (start conservative)
+   Effect: Smooths high-frequency torque commands that excite resonance
    ```
 
-5. **Add Speed Feedback Filtering:**
+5. **Test Initial Results:**
+   - Enable servo and test motion
+   - If significant improvement, proceed to Phase B
+   - If buzzing remains, continue with gain reduction
+
+### Phase B: Dynamic Gain Reduction (Main Fix)
+
+6. **Reduce Dynamic Speed Gain (CRITICAL FIX):**
+   ```
+   Parameter: P02-13 (Speed proportional gain 2 - Dynamic Kp)
+   Current Value: 29.0 (TOO HIGH - main cause of buzzing)
+   New Value: 24.0 (start here, can try 25.0 if too sluggish)
+   Effect: Reduces dynamic stiffness that excites resonance during motion
+   ```
+
+7. **Test Motion Performance:**
+   - Enable servo and run typical moves that previously caused buzzing
+   - Check for buzzing elimination during acceleration/deceleration
+   - Verify motion isn't too sluggish (if so, try 25.0 instead of 24.0)
+   - Monitor positioning accuracy
+
+8. **Optional: Add Speed Feedback Filtering (if needed):**
    ```
    Parameter: P08-19 (Speed feedback filter)
-   Set Value: 1.0 ms
-   Effect: Filters speed feedback to reduce noise-induced vibration
+   Set Value: 0.5-1.0ms (only if high-frequency hiss remains)
+   Effect: Filters speed feedback noise, but adds slight lag
+   Warning: Start with 0.5ms, don't exceed 1.0ms to avoid sluggish response
    ```
 
-6. **Test Again:**
-   - Enable servo and check for buzzing
-   - Move to several positions to test throughout range
-   - If stable, proceed to Phase C
+9. **Test Complete System:**
+   - Run full range of typical motions
+   - Verify buzzing is eliminated throughout motion range
+   - If stable, proceed to Phase C for optimization
 
-### Phase C: Enable Adaptive Vibration Suppression
+### Phase C: Performance Optimization (After Buzzing Eliminated)
 
-7. **Enable Adaptive Notch Filter:**
-   ```
-   Parameter: P08-11 (Adaptive notch mode)
-   Set Value: 1 (Single adaptive notch filter)
-   
-   Parameter: P08-13 (Vibration detection threshold)
-   Set Value: 3 (Medium sensitivity)
-   
-   Effect: Automatically detects and suppresses resonance frequencies
-   ```
+10. **Test for Performance vs. Stability Balance:**
+    - With P02-13 = 24, test motion responsiveness
+    - If motion feels sluggish and no buzzing, try P02-13 = 25
+    - If 25 is stable, optionally test P02-13 = 26 (but monitor closely)
+    - Stop at first sign of buzzing return
 
-8. **Final System Test:**
-   - Run servo through full motion range
-   - Check for any remaining vibration or unusual noise
-   - Monitor servo temperature during operation
-   - Test positioning accuracy
-
-### Phase D: Performance Optimization (After Buzzing is Eliminated)
-
-9. **Gradually Increase Performance:**
-   ```
-   If system is stable with P01-03 = 8:
-   - Try P01-03 = 10, test for buzzing
-   - If stable, try P01-03 = 12, test again
-   - Stop at highest value that maintains smooth operation
-   ```
-
-10. **Fine-tune Filtering (Optional):**
+11. **Fine-tune Torque Filtering:**
     ```
-    If performance is acceptable, try reducing filters slightly:
-    - P08-20, P08-21: Reduce from 1.5ms to 1.0ms
-    - P08-19: Reduce from 1.0ms to 0.8ms
-    - Test after each change
+    If system is stable with P08-20 = 1.5ms:
+    - Try reducing to P08-20 = 1.0ms for faster response
+    - Test thoroughly for buzzing return
+    - If buzzing returns, revert to 1.5ms
     ```
+
+12. **Final System Validation:**
+    - Run servo through complete motion range
+    - Test positioning accuracy and repeatability  
+    - Monitor servo temperature during extended operation
+    - Verify no unusual noise throughout travel
+    - Document successful parameter set
+
+## Manual vs. Automatic Mode Decision
+
+### Option 1: Continue Manual Tuning (Recommended for Your Situation)
+Since you've already invested time in manual tuning and have some gains optimized, you may want to continue in manual mode:
+
+**Advantages:**
+- Keep your existing optimized static gains (P02-10=20, P02-11=11ms)  
+- Only need to fix the problematic dynamic gain (P02-13: 29→24)
+- More precise control over individual parameters
+- No risk of automatic mode overriding your good settings
+
+**This Approach:** Focus on the specific fixes in Phase A-C above
+
+### Option 2: Switch to Automatic Mode (Alternative)
+If you want to start fresh with automatic tuning:
+
+**Parameters to change:**
+- P01-02: 0 → 1 (Enable standard automatic rigidity adjustment)
+- P01-03: 13 → 8 (Conservative starting rigidity level)
+
+**Advantages:**
+- Automatic optimization for your 2.5:1 inertia ratio
+- Built-in gain relationships and filtering
+- Less manual tuning required
+
+**Disadvantages:**  
+- May override your already-good static gain settings
+- Less granular control over individual parameters
+
+## Exact Parameter Change Table (Copy-Paste Ready)
+
+**Apply these changes in the specified order for optimal results:**
+
+| Parameter | Description | Current Value | Recommended Value | Notes & Testing |
+|-----------|-------------|---------------|-------------------|-----------------|
+| **P08-11** | Adaptive notch filter mode | 0 (OFF) | **1** → run 2-5 minutes → **0** | Enable to detect resonance, then freeze. Run typical moves while P08-11=1 until tone reduces, then set to 0 to lock. |
+| **P08-20** | Torque command filtering | ~0.8ms (default) | **1.5ms** | Smooths torque spikes that excite resonance. If still noisy, try 2.0-3.0ms. Small values retain responsiveness. |
+| **P02-13** | Speed prop gain 2 (Dynamic Kp) | **29.0** | **24.0** (or 25.0) | **MAIN FIX** - Reduces dynamic stiffness causing motion buzzing. Try 25.0 if 24.0 feels sluggish. |
+| **P02-10** | Speed prop gain 1 (Static Kp) | **20.0** | **Keep 20.0** | Already optimized. Only reduce to 16-18 if idle buzzing persists after notch/filter. |
+| **P02-11** | Speed integral 1 (Static Ki time) | **11.0ms** | **Keep 11.0ms** | Already optimized. Could try 10.0ms for firmer hold if needed after reducing P02-13. |
+| **P02-14** | Speed integral 2 (Dynamic Ki time) | **1000ms** | **Keep 1000ms** | Effectively disables dynamic integral - this is correct. Only change if following error issues. |
+| **P08-19** | Speed feedback LPF | 0ms (off) | **Optional: 0.5-1.0ms** | Only if high-freq hiss remains after notch+torque filter. Adds lag - use sparingly. |
+
+### Manual Notch (If Adaptive Fails)
+| Parameter | Description | Set Only If Needed | Notes |
+|-----------|-------------|-------------------|-------|
+| **P08-30** | Manual notch 1 frequency | Monitor detected Hz | Set to frequency found during adaptive phase |
+| **P08-31** | Manual notch 1 width | 2 | Width=2, depth=30-50 is good starting point |
+| **P08-32** | Manual notch 1 depth | 30-50 | Lower values = deeper suppression |
+
+### Step-by-Step Application Instructions:
+1. **Backup current parameters**
+2. **Set P08-11 = 1** → Run typical moves for 2-5 minutes → **Set P08-11 = 0**
+3. **Set P08-20 = 1.5ms** → Test
+4. **Set P02-13 = 24.0** → Test motion (try 25.0 if too sluggish)
+5. **If still buzzing:** Increase P08-20 → 2.0ms, retest
+6. **If particular frequency remains:** Set manual notch parameters
+7. **Optional:** Add P08-19 = 0.5ms if faint hiss remains
 
 **Success Criteria:**
 - ✅ No audible buzzing or vibration
@@ -395,29 +493,26 @@ Without this expert knowledge, the high rigidity setting becomes counterproducti
 
 ## Troubleshooting Common Issues
 
-### Issue: Buzzing in Manual Rigidity Mode (Your Current Configuration)
-**Root Cause:** P01-02 = 0 (Manual mode) with P01-03 = 13 (high rigidity)
+### Issue: Buzzing from High Dynamic Gain (Your Current Configuration)
+**Root Cause:** P02-13 = 29 (dynamic speed gain too high) + no filtering active
 
-**Immediate Solutions:**
-1. **Enable automatic mode:** P01-02 = 0 → 1 (Most effective fix)
-2. **Reduce rigidity:** P01-03 = 13 → 8 (Conservative starting point)
-3. **Add filtering immediately:**
-   - P08-20 = 1.5ms (Torque filter 1)
-   - P08-21 = 1.5ms (Torque filter 2) 
-   - P08-19 = 1.0ms (Speed filter)
-4. **Enable adaptive notch:** P08-11 = 1, P08-13 = 3
+**Immediate Solutions (in order):**
+1. **Enable adaptive notch:** P08-11 = 1 → run moves → P08-11 = 0 (Most effective first step)
+2. **Add torque filtering:** P08-20 = 1.5ms (Smooths excitation)
+3. **Reduce dynamic gain:** P02-13 = 29 → 24 (Main buzzing fix for motion)
+4. **Optional speed filter:** P08-19 = 0.5-1.0ms (if hiss remains)
 
 **Why This Happens:**
-- Manual mode uses fixed gains regardless of load conditions
-- High rigidity (13/31) creates aggressive control response
-- No automatic adaptation to your 2.5:1 inertia ratio
-- Missing critical filtering for smooth operation
+- P02-13 = 29 makes servo very stiff during motion, exciting structural resonances
+- No filtering active (P08-11=0, minimal P08-20) allows resonances to build
+- Static gains (P02-10, P02-11) already optimized, dynamic gain is the problem
+- P02-14=1000ms disables dynamic integral, making system rely on proportional control
 
 **Progressive Tuning After Fix:**
-1. Test with P01-02=1, P01-03=8 first
-2. If stable, gradually increase P01-03 to 10, then 12
-3. Monitor for return of buzzing at each step
-4. Stop at highest stable rigidity level
+1. Test with P02-13 = 24 first (should eliminate buzzing)
+2. If motion feels sluggish, try P02-13 = 25
+3. If still stable and need more performance, try P02-13 = 26
+4. Monitor for buzzing return at each step - stop immediately if it returns
 
 ### Issue: Buzzing Persists After All Tuning
 **Possible Causes & Solutions:**
@@ -480,33 +575,31 @@ P00-02: 1.27 (Motor rated torque, N.m)
 P00-03: 2.36 (Motor rated current, A)
 P00-04: 0.34 (Motor rotor inertia, kg.cm²)
 
-Critical Tuning Parameters:
-P01-02: _____ (Auto adjust mode: 0=Manual, 1=Standard auto) [Current: 0→Change to 1]
-P01-03: _____ (Rigidity setting, 0-31) [Current: 13→Change to 8]
-P01-04: 2.50 (Load inertia ratio) [Current: Good]
-P02-00: _____ (Position gain 1, 1/S) [Auto-set when P01-02=1]
-P02-01: _____ (Position gain 2, 1/S) [Auto-set when P01-02=1]
-P02-10: _____ (Speed prop gain 1, Hz) [Auto-set when P01-02=1]
-P02-11: _____ (Speed integral 1, ms) [Auto-set when P01-02=1]
-P02-13: _____ (Speed prop gain 2, Hz) [Auto-set when P01-02=1]
-P02-14: _____ (Speed integral 2, ms) [Auto-set when P01-02=1]
+Critical Tuning Parameters (Current Values from JSON Analysis):
+P01-02: 0 (Manual mode - keeping in manual since gains partially optimized)
+P01-03: 13 (Rigidity setting - keeping current since using manual gains)
+P01-04: 2.50 (Load inertia ratio - Good)
+P02-10: 20.0 (Speed prop gain 1) [KEEP - already optimized down from ~27]
+P02-11: 11.0 (Speed integral 1, ms) [KEEP - already optimized up from ~10ms] 
+P02-13: _____ (Speed prop gain 2) [CURRENT: 29.0 → CHANGE TO: 24.0-25.0]
+P02-14: 1000 (Speed integral 2, ms) [KEEP - disables dynamic integral, correct]
 
-Filtering & Vibration (Add These for Buzzing):
-P08-11: _____ (Adaptive notch mode, 0-4) [Recommend: 1]
-P08-13: _____ (Vibration threshold, 0-7) [Recommend: 3]
-P08-19: _____ (Speed filter, ms) [Recommend: 1.0]
-P08-20: _____ (Torque filter 1, ms) [Recommend: 1.5]
-P08-21: _____ (Torque filter 2, ms) [Recommend: 1.5]
+Filtering & Vibration (Apply These Changes for Buzzing):
+P08-11: _____ (Adaptive notch mode) [CURRENT: 0 → CHANGE: 1→0 freeze technique]
+P08-19: _____ (Speed filter, ms) [CURRENT: 0 → ADD IF NEEDED: 0.5-1.0ms]
+P08-20: _____ (Torque filter, ms) [CURRENT: ~0.8 → CHANGE TO: 1.5ms]
 
 Manual Notch (if adaptive fails):
-P08-30: _____ (Notch 1 freq, Hz)
-P08-31: _____ (Notch 1 width)
-P08-32: _____ (Notch 1 depth)
+P08-30: _____ (Notch 1 freq, Hz) [Use frequency detected during adaptive phase]
+P08-31: _____ (Notch 1 width) [Recommend: 2]
+P08-32: _____ (Notch 1 depth) [Recommend: 30-50]
 
 Baseline Configuration (Before Changes):
-P01-02: 0 (Manual mode - CAUSING BUZZING)
-P01-03: 13 (Medium-high rigidity - Contributing to buzzing)
-P01-04: 2.50 (Inertia ratio - OK)
+P01-02: 0 (Manual mode - can keep, some gains already optimized)
+P01-03: 13 (Rigidity - not main issue)
+P01-04: 2.50 (Inertia ratio - Good)
+P02-13: 29.0 (MAIN PROBLEM - dynamic gain too high causing motion buzzing)
+P08-11: 0 (No adaptive notch - missing critical resonance suppression)
 
 Performance Results:
 - Buzzing eliminated: Y/N
