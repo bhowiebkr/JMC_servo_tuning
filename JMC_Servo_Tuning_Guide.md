@@ -3,6 +3,45 @@
 ## Overview
 This guide provides a systematic approach to eliminate servo buzzing/vibration when operating in position control mode. The buzzing typically indicates excessive gain settings, resonance issues, or inadequate filtering.
 
+## JMC Servo Tuning Philosophy & Best Practices
+
+### The Intelligent Servo Approach
+JMC servos are engineered as intelligent drive systems with sophisticated automatic tuning algorithms built into their core functionality. Unlike basic servo drives that require extensive manual parameter adjustment, JMC servos can analyze your mechanical system dynamics, measure load characteristics, and automatically optimize all control loop parameters for peak performance. This intelligent approach represents decades of servo application experience distilled into adaptive algorithms that continuously monitor and adjust system behavior in real-time.
+
+The fundamental philosophy behind JMC servo design is that the drive should adapt to your application, not the other way around. When properly configured, these servos can automatically handle the complex interactions between position control gains, speed loop dynamics, current limiting, and mechanical resonance suppression. This eliminates the traditional trial-and-error approach to servo tuning and reduces setup time from hours or days to minutes.
+
+### System Identification: The Foundation of Optimal Performance
+The cornerstone of effective JMC servo tuning begins with accurate system identification, particularly the load-to-motor inertia ratio. This single, critical measurement allows the servo's internal algorithms to calculate optimal gains for all three nested control loops: current control, speed control, and position control. The automatic inertia identification function (AF-JL) not only measures this ratio but also analyzes system dynamics, friction characteristics, and mechanical coupling stiffness.
+
+Once the servo understands your mechanical system through proper inertia identification, it can automatically set hundreds of internal parameters that would otherwise require expert-level knowledge to optimize manually. This includes not just the obvious gain settings, but also integral time constants, derivative actions, feedforward compensation, and filtering characteristics. The servo essentially becomes a tuning expert that knows your specific application.
+
+### Progressive Rigidity: Balancing Performance and Stability  
+JMC's automatic rigidity adjustment system (P01-02 modes 1-3) provides pre-calculated gain combinations that have been optimized for different application categories. These rigidity levels represent the culmination of extensive testing across thousands of real-world servo applications, from high-precision positioning systems to high-speed packaging equipment. Each rigidity setting balances multiple competing factors: positioning accuracy, dynamic response speed, system stability, and vibration suppression.
+
+The rigidity scale (P01-03, ranging 0-31) allows fine-tuning within each automatic mode, providing 32 different performance points that span from ultra-smooth operation suitable for delicate mechanisms to high-performance settings for demanding industrial applications. The key advantage is that each rigidity level maintains optimal relationships between all control parameters - something nearly impossible to achieve through manual adjustment without extensive servo expertise.
+
+### Adaptive Control Features: Intelligence That Learns Your System
+Modern JMC servos incorporate adaptive control technologies that continuously monitor system behavior and automatically adjust to changing conditions. The adaptive notch filter system can detect mechanical resonance frequencies in real-time and automatically configure filtering to suppress vibrations without degrading servo response. This is particularly valuable in applications where resonance characteristics change due to load variations, temperature effects, or mechanical wear over time.
+
+The servo's vibration detection algorithms analyze torque command ripple, speed feedback noise, and current consumption patterns to identify problematic frequencies before they cause audible buzzing or mechanical stress. When combined with the adaptive filtering system, this creates a servo that becomes quieter and smoother over time as it learns and adapts to your specific mechanical system characteristics.
+
+### Hierarchical Control Architecture: The Engineering Foundation
+JMC servos employ a sophisticated three-loop control architecture where each loop operates at different time scales and serves distinct functions. The innermost current control loop operates at the highest frequency (typically 8-16 kHz) and provides precise torque regulation with fast transient response. The middle speed control loop operates at intermediate frequency (1-4 kHz) and regulates motor velocity while providing disturbance rejection. The outermost position control loop operates at the lowest frequency (250-1000 Hz) and provides accurate positioning with appropriate dynamic response.
+
+This hierarchical structure means that tuning must proceed from the inside out - current loop parameters affect speed loop stability, and speed loop characteristics directly impact position loop performance. The automatic tuning modes handle these complex interactions seamlessly, ensuring that each loop operates at its optimal frequency and gain settings while maintaining overall system stability. Manual tuning requires deep understanding of these interdependencies and can easily create unstable interactions if not done correctly.
+
+## Problems with Your Current Manual Configuration
+
+### Bypassing Built-in Intelligence: The Core Issue
+Your current servo configuration (P01-02=0, manual rigidity mode) effectively bypasses all of the sophisticated automatic tuning capabilities that make JMC servos intelligent drives. This is analogous to purchasing a modern smartphone with advanced features like GPS navigation, automatic camera settings, and intelligent battery management, then choosing to use it only as a basic calculator. While it will perform the basic function, you're not utilizing any of the advanced engineering that makes the device truly capable.
+
+In manual mode, the servo operates with fixed, predetermined gain settings that cannot adapt to your specific 2.5:1 inertia ratio, your particular mechanical coupling characteristics, or the dynamic requirements of your application. The servo essentially becomes "blind" to system conditions and operates with generic parameters that may or may not be appropriate for your setup. This explains why you're experiencing buzzing - the servo is using aggressive control settings without the complementary filtering, load adaptation, or dynamic response optimization that automatic modes provide.
+
+### Expert Knowledge Requirements and the Rigidity Problem
+Manual servo tuning is one of the most complex aspects of motion control engineering, requiring deep understanding of control theory, mechanical system dynamics, electrical noise characteristics, and extensive experience with servo applications across different industries. The current high rigidity setting (P01-03=13) creates an aggressive control response that demands precise coordination between position gains, speed loop parameters, integral time constants, derivative actions, and multiple filtering stages.
+
+Without this expert knowledge, the high rigidity setting becomes counterproductive - the servo is essentially "fighting itself" with overly aggressive gains that create rapid control actions, amplify system noise, generate excessive torque ripple, and excite mechanical resonances. The buzzing you're experiencing is the audible manifestation of these poorly matched control parameters. The servo is trying to achieve precise control with brute force rather than intelligent adaptation, resulting in the mechanical vibrations that create the characteristic servo "buzz" or "whine."
+
 ## Quick Reference - Common Buzz Fixes
 
 **Immediate Actions for Buzzing:**
